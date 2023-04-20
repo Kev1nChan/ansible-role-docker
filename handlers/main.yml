@@ -1,0 +1,25 @@
+---
+# handlers file for docker
+- name: Start docker service
+  ansible.builtin.systemd:
+    name: "{{ docker_service_name }}"
+    state: started
+    enabled: true
+    daemon_reload: true
+  listen: start docker
+
+- name: Restart docker service
+  ansible.builtin.systemd:
+    name: "{{ docker_service_name }}"
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  listen: restart docker
+
+- name: Stop docker service
+  ansible.builtin.systemd:
+    name: "{{ docker_service_name }}"
+    state: stopped
+    enabled: false
+    daemon_reload: true
+  listen: stop docker

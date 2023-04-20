@@ -1,0 +1,95 @@
+---
+# tasks file for docker
+- name: Create docker user
+  ansible.builtin.user:
+    name: "{{ docker_user }}"
+    shell: /bin/false
+    state: present
+    createhome: false
+    system: true
+  when: docker_user is defined and docker_user != "root"
+
+- name: Create docker install directory
+  ansible.builtin.file:
+    path: "{{ docker_install_path }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0755'
+  when: docker_install_path not in ['/bin', '/usr/bin', '/usr/local/bin', '/sbin', '/usr/sbin', '/usr/local/sbin']
+
+- name: Create docker configuration directory
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0755'
+  with_items:
+    - "{{ docker_config_path }}"
+    - "{{ docker_containerd_config_path }}"
+
+- name: Create docker data directory
+  ansible.builtin.file:
+    path: "{{ docker_data_path }}"
+    state: directory
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0755'
+
+- name: Unarchive docker binaries
+  ansible.builtin.unarchive:
+    src: "{{ docker_binary_package }}"
+    dest: "{{ docker_install_path }}"
+    remote_src: true
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0755'
+    creates: "{{ docker_install_path }}/docker"
+    extra_opts:
+      - --strip-components=1
+  when: docker_binary_package is defined
+  notify:
+    - start docker
+
+- name: Create docker configuration file
+  ansible.builtin.template:
+    src: "{{ item['src'] }}"
+    dest: "{{ item['dest'] }}"
+    owner: "{{ docker_user }}"
+    group: "{{ docker_user }}"
+    mode: '0644'
+    backup: true
+  loop:
+    - src: daemon.json.j2
+      dest: "{{ (docker_config_path, 'daemon.json') | path_join }}"
+      when: docker_config_path is defined
+    - src: containerd.toml.j2
+      dest: "{{ (docker_containerd_config_path, 'config.toml') | path_join }}"
+      when: docker_containerd_config_path is defined
+  notify:
+    - restart docker
+
+- name: Create docker systemd unit file
+  ansible.builtin.template:
+    src: "{{ item['src'] }}"
+    dest: "{{ item['dest'] }}"
+    owner: root
+    group: root
+    mode: '0644'
+    backup: true
+  loop:
+    - src: systemd/docker.service.j2
+      dest: "{{('/etc/systemd/system/', docker_service_name ~ '.service') | path_join}}"
+      when: docker_service_name is defined
+    - src: systemd/docker.socket.j2
+      dest: "{{('/etc/systemd/system/', docker_service_name ~ '.socket') | path_join}}"
+      when: docker_service_name is defined
+    - src: systemd/containerd.service.j2
+      dest: "{{('/etc/systemd/system/', docker_containerd_service_name ~ '.service') | path_join}}"
+      when: docker_containerd_service_name is defined
+  notify:
+    - restart docker
+
+- name: Force all notified handlers to run at this point, not waiting for normal sync points
+  ansible.builtin.meta: flush_handlers

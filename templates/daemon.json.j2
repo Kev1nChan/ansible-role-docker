@@ -1,0 +1,74 @@
+{% set ipv4_prefix = ansible_default_ipv4['address'].split('.')[0] %}
+{% set ipv4_suffix = ansible_default_ipv4['address'].split('.')[2:] | join('.') %}
+{% if ipv4_prefix == "172" %}
+    {% set bip = '10.' ~ ipv4_suffix ~ '.1/24' %}
+{% else -%}
+    {% set bip = '172.' ~ ipv4_suffix ~ '.1/24' %}
+{% endif -%}
+{
+    "data-root": "{{ docker_data_path }}",
+    "storage-driver": "{{ docker_storage_driver }}",
+    "exec-root": "{{ docker_exec_root_path }}",
+{% if docker_exec_opts is defined and docker_exec_opts | default([], true) | unique != [] %}
+    "exec-opts": [
+{% for opt in docker_exec_opts %}
+{% if loop.last %}
+{{ '        "' ~ opt ~ '"' }}
+{% else %}
+{{ '        "' ~ opt ~ '",' }}
+{% endif %}
+{% endfor %}
+    ],
+{% endif %}
+    "live-restore": {{ docker_live_restore }},
+{% if docker_registries_insecure | default([], true) | unique != [] %}
+    "insecure-registries": [
+{% for insecure in docker_registries_insecure | unique %}
+{% if loop.last %}
+{{ '        "' ~ insecure ~ '"' }}
+{% else %}
+{{ '        "' ~ insecure ~ '",' }}
+{% endif %}
+{% endfor %}
+    ],
+{% endif %}
+{% if docker_registries_mirrors | default([], true) | unique != [] %}
+    "registry-mirrors": [
+{% for mirror in docker_registries_mirrors | unique %}
+{% if loop.last %}
+{{ '        "' ~ mirror ~ '"' }}
+{% else %}
+{{ '        "' ~ mirror ~ '",' }}
+{% endif %}
+{% endfor %}
+    ],
+{% endif %}
+    "log-driver": "{{ docker_log_driver }}",
+    "log-opts": {
+        "max-size":"{{ docker_log_opts['max-size'] }}", 
+        "max-file":"{{ docker_log_opts['max-file'] }}"
+    },
+    "bip": "{{ bip }}",
+{% if docker_dns | default([], true) | unique != [] %}
+    "dns": [
+{% for dns in docker_dns | unique %}
+{% if loop.last %}
+{{ '        "' ~ dns ~ '"' }}
+{% else %}
+{{ '        "' ~ dns ~ '",' }}
+{% endif %}
+{% endfor %}
+    ],
+{% endif %}
+{% if docker_hosts | default([], true) | unique != [] %}
+    "hosts": [
+{% for host in docker_hosts %}
+{% if loop.last %}
+{{ '        "' ~ host ~ '"' }}
+{% else %}
+{{ '        "' ~ host ~ '",' }}
+{% endif %}
+{% endfor %}
+    ]
+{% endif %}
+}

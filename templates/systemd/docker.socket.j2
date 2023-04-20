@@ -1,0 +1,14 @@
+[Unit]
+Description=Docker Socket for the API
+PartOf={{ docker_service_name | default('docker', true) }}.service
+
+[Socket]
+# If /var/run is not implemented as a symlink to /run, you may need to
+# specify ListenStream=/var/run/docker.sock instead.
+ListenStream={{ docker_unix_sock_file }}
+SocketMode=0660
+SocketUser=root
+SocketGroup=docker
+
+[Install]
+WantedBy=sockets.target

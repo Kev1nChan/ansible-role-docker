@@ -1,0 +1,21 @@
+---
+- name: Install docker
+  hosts: docker
+  tags:
+    - docker
+    - install
+  roles:
+    - role: docker
+      docker_dns:
+        - 223.5.5.5
+
+- name: Uninstall docker
+  hosts: docker
+  tags:
+    - docker
+    - uninstall
+  tasks:
+    - name: Uninstall docker
+      include_role:
+        name: docker
+        tasks_from: purge.yml
